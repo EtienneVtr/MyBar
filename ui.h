@@ -11,14 +11,10 @@ extern RECT closeBtnRect;
 extern int closeAlpha;
 extern bool closeTargetVisible;
 
-extern bool barHover;
-extern int mouseX;
-extern int mouseY;
 extern int reflectAlpha;
 extern int reflectTargetAlpha;
 
 void DrawUI(HWND hwnd, HDC hdc);
 void OnLeftButtonDown(HWND hwnd, int x, int y);
 void OnMouseMove(HWND hwnd, int x, int y);
-void OnMouseLeave(HWND hwnd);
 void OnTimer(HWND hwnd, WPARAM wParam);

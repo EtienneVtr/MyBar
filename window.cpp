@@ -21,10 +21,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         OnMouseMove(hwnd, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
         break;
 
-    case WM_MOUSELEAVE:
-        OnMouseLeave(hwnd);
-        break;
-
     case WM_TIMER:
         OnTimer(hwnd, wParam);
         break;
