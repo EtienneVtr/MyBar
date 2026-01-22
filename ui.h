@@ -5,14 +5,10 @@
 #include <windows.h>
 
 #define TIMER_CLOSE_FADE 1
-#define TIMER_HOVER_ANIM 2
 
 extern RECT closeBtnRect;
 extern int closeAlpha;
 extern bool closeTargetVisible;
-
-extern int reflectAlpha;
-extern int reflectTargetAlpha;
 
 void DrawUI(HWND hwnd, HDC hdc);
 void OnLeftButtonDown(HWND hwnd, int x, int y);

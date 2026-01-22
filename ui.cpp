@@ -14,11 +14,6 @@ RECT closeBtnRect{};
 int closeAlpha = 0;
 bool closeTargetVisible = false;
 
-int reflectAlpha = 0;
-int reflectTargetAlpha = 0;
-
-static bool trackingMouseLeave = false;
-
 static void DrawTopHighlight(HDC hdc, int w, int h, int alpha) {
     if (alpha <= 0) return;
 
@@ -84,39 +79,50 @@ static void DrawBevel(HDC hdc, int w, int h) {
 void DrawUI(HWND hwnd, HDC hdc) {
     RECT rc;
     GetClientRect(hwnd, &rc);
-    FillRect(hdc, &rc, (HBRUSH)GetStockObject(BLACK_BRUSH));
 
-    int barW = rc.right - rc.left;
-    int barH = rc.bottom - rc.top;
+    int w = rc.right - rc.left;
+    int h = rc.bottom - rc.top;
 
-    // 1) highlight du haut (effet verre)
-    DrawTopHighlight(hdc, barW, barH, 70);
+    // 1) Backbuffer
+    HDC memDC = CreateCompatibleDC(hdc);
+    HBITMAP memBmp = CreateCompatibleBitmap(hdc, w, h);
+    HGDIOBJ oldBmp = SelectObject(memDC, memBmp);
 
-    // 3) icônes
+    // 2) Dessine tout sur memDC (pas sur hdc)
+    FillRect(memDC, &rc, (HBRUSH)GetStockObject(BLACK_BRUSH));
+
+    DrawTopHighlight(memDC, w, h, 70);
+
     for (auto& app : apps) {
-        DrawIconEx(hdc, app.rect.left, app.rect.top, app.icon, iconSize, iconSize, 0, NULL, DI_NORMAL);
+        DrawIconEx(memDC, app.rect.left, app.rect.top, app.icon, iconSize, iconSize, 0, NULL, DI_NORMAL);
     }
 
-    // 4) bouton close
     if (closeAlpha > 0) {
         int a = closeAlpha;
         COLORREF col = RGB((120 * a) / 255, (120 * a) / 255, (120 * a) / 255);
 
         HPEN hPen = CreatePen(PS_SOLID, 2, col);
-        HGDIOBJ oldPen2 = SelectObject(hdc, hPen);
+        HGDIOBJ oldPen2 = SelectObject(memDC, hPen);
 
-        MoveToEx(hdc, closeBtnRect.left, closeBtnRect.top, NULL);
-        LineTo(hdc, closeBtnRect.right, closeBtnRect.bottom);
+        MoveToEx(memDC, closeBtnRect.left, closeBtnRect.top, NULL);
+        LineTo(memDC, closeBtnRect.right, closeBtnRect.bottom);
 
-        MoveToEx(hdc, closeBtnRect.right, closeBtnRect.top, NULL);
-        LineTo(hdc, closeBtnRect.left, closeBtnRect.bottom);
+        MoveToEx(memDC, closeBtnRect.right, closeBtnRect.top, NULL);
+        LineTo(memDC, closeBtnRect.left, closeBtnRect.bottom);
 
-        SelectObject(hdc, oldPen2);
+        SelectObject(memDC, oldPen2);
         DeleteObject(hPen);
     }
 
-    // 5) bevel / rim par-dessus (finish)
-    DrawBevel(hdc, barW, barH);
+    DrawBevel(memDC, w, h);
+
+    // 3) Copie finale (1 seul blit => plus de tressautement)
+    BitBlt(hdc, 0, 0, w, h, memDC, 0, 0, SRCCOPY);
+
+    // 4) Cleanup
+    SelectObject(memDC, oldBmp);
+    DeleteObject(memBmp);
+    DeleteDC(memDC);
 }
 
 void OnLeftButtonDown(HWND hwnd, int x, int y) {
@@ -134,25 +140,14 @@ void OnLeftButtonDown(HWND hwnd, int x, int y) {
 }
 
 void OnMouseMove(HWND hwnd, int x, int y) {
-    // déclenche WM_MOUSELEAVE une fois
-    if (!trackingMouseLeave) {
-        TRACKMOUSEEVENT tme{};
-        tme.cbSize = sizeof(tme);
-        tme.dwFlags = TME_LEAVE;
-        tme.hwndTrack = hwnd;
-        TrackMouseEvent(&tme);
-        trackingMouseLeave = true;
-    }
-    
     POINT pt = { x, y };
 
     bool hoverClose = PtInRect(&closeBtnRect, pt);
     if (hoverClose != closeTargetVisible) {
         closeTargetVisible = hoverClose;
         SetTimer(hwnd, TIMER_CLOSE_FADE, 16, NULL);
+        InvalidateRect(hwnd, NULL, FALSE);
     }
-
-    InvalidateRect(hwnd, NULL, FALSE);
 }
 
 void OnTimer(HWND hwnd, WPARAM wParam) {
@@ -167,24 +162,5 @@ void OnTimer(HWND hwnd, WPARAM wParam) {
         if (closeAlpha == (closeTargetVisible ? 255 : 0)) KillTimer(hwnd, TIMER_CLOSE_FADE);
         InvalidateRect(hwnd, NULL, FALSE);
         return;
-    }
-
-    if (wParam == TIMER_HOVER_ANIM) {
-        const int speed = 25; // vitesse du reflet
-        if (reflectAlpha < reflectTargetAlpha) {
-            reflectAlpha += speed;
-            if (reflectAlpha > reflectTargetAlpha) reflectAlpha = reflectTargetAlpha;
-        }
-        else if (reflectAlpha > reflectTargetAlpha) {
-            reflectAlpha -= speed;
-            if (reflectAlpha < reflectTargetAlpha) reflectAlpha = reflectTargetAlpha;
-        }
-
-        if (reflectAlpha == reflectTargetAlpha) {
-            KillTimer(hwnd, TIMER_HOVER_ANIM);
-        }
-
-
-        InvalidateRect(hwnd, NULL, FALSE);
     }
 }
