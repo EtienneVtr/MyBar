@@ -1,0 +1,57 @@
+PROJECT: mybar (Win32 C++)
+
+FILES & RESPONSIBILITIES
+
+1) main.cpp
+- Entry point: WinMain
+- Init/cleanup: CoInitialize / CoUninitialize
+- Data init: LoadAppsFromFolder(".../apps")
+- Layout init: compute barWidth/barHeight, compute closeBtnRect, screen position (posX/posY)
+- Window setup: RegisterClass, CreateWindowEx(WS_POPUP | WS_EX_TOPMOST | WS_EX_TOOLWINDOW)
+- Visual effects: SetWindowCompositionAttribute (blur/acrylic), DwmExtendFrameIntoClientArea, DwmSetWindowAttribute (dark mode + rounded corners)
+- Message loop: GetMessage / TranslateMessage / DispatchMessage
+
+2) window.h + window.cpp
+- Win32 message handler: WndProc
+- Handles:
+  - WM_ERASEBKGND: return 1 (avoid background redraw / opacity issues)
+  - WM_PAINT: BeginPaint -> DrawUI(hwnd, hdc) -> EndPaint
+  - WM_LBUTTONDOWN: OnLeftButtonDown(hwnd, x, y)
+  - WM_MOUSEMOVE: OnMouseMove(hwnd, x, y)
+  - WM_TIMER: OnTimer(hwnd, wParam)
+  - WM_DESTROY: PostQuitMessage
+- Role: routes OS events to UI functions (thin dispatcher)
+
+3) ui.h + ui.cpp
+- UI rendering and interaction logic
+- DrawUI(hwnd, hdc):
+  - Fill background (black)
+  - Draw app icons (DrawIconEx using rects from AppIcon)
+  - Draw close "X" with fade (closeAlpha controls grey intensity)
+- Input handlers:
+  - OnLeftButtonDown:
+    - if click on app icon rect -> ShellExecute("open", app.path)
+    - if click on closeBtnRect -> SendMessage(hwnd, WM_CLOSE)
+  - OnMouseMove:
+    - detect hover close button -> set closeTargetVisible and start timer
+  - OnTimer (TIMER_CLOSE_FADE):
+    - animate closeAlpha toward 255 or 0 (fade in/out)
+    - stop timer when target reached
+    - InvalidateRect to trigger repaint
+- State owned here:
+  - closeBtnRect (defined in main, used here)
+  - closeAlpha, closeTargetVisible
+
+4) app_loader.h + app_loader.cpp
+- App discovery + icon extraction
+- Data:
+  - struct AppIcon { RECT rect; std::wstring path; HICON icon; }
+  - global vector apps
+  - constants iconSize, spacing
+- ResolveShortcut(lnkPath):
+  - uses COM IShellLink + IPersistFile to resolve .lnk target path
+- LoadAppsFromFolder(folder):
+  - FindFirstFile/FindNextFile iterate folder
+  - if .lnk -> resolve to target
+  - SHGetFileInfo(..., SHGFI_ICON|SHGFI_LARGEICON) to load HICON
+  - fill apps vector with AppIcon + initial rect placement (x, y)

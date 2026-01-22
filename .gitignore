@@ -1,0 +1,47 @@
+# ---- Build outputs ----
+*.exe
+*.dll
+*.lib
+*.exp
+*.obj
+*.pdb
+*.ilk
+*.iobj
+*.ipdb
+*.pch
+*.idb
+*.tlog
+*.log
+*.tmp
+
+# ---- Linker / manifest / resources ----
+*.manifest
+*.res
+
+# ---- Visual Studio / MSVC ----
+.vs/
+*.suo
+*.user
+*.vcxproj*
+*.sln
+*.VC.db
+*.VC.VC.opendb
+
+# ---- Folders often used for builds ----
+Debug/
+Release/
+x64/
+x86/
+build/
+out/
+
+# ---- Windows ----
+Thumbs.db
+Desktop.ini
+
+# ---- Optional: compiled assets / cache ----
+*.cache
+
+# ---- Your runtime apps folder (optional) ----
+# If you don’t want tracked shortcuts/icons:
+apps/
