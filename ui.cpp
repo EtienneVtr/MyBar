@@ -76,6 +76,36 @@ static void DrawBevel(HDC hdc, int w, int h) {
     DeleteObject(dark);
 }
 
+static void DrawTint(HDC hdc, int w, int h, int alpha /*0..255*/, BYTE gray /*ex: 20..80*/) {
+    if (alpha <= 0) return;
+
+    BITMAPINFO bmi{};
+    bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bmi.bmiHeader.biWidth = w;
+    bmi.bmiHeader.biHeight = -h;
+    bmi.bmiHeader.biPlanes = 1;
+    bmi.bmiHeader.biBitCount = 32;
+    bmi.bmiHeader.biCompression = BI_RGB;
+
+    void* bits = nullptr;
+    HDC mem = CreateCompatibleDC(hdc);
+    HBITMAP dib = CreateDIBSection(mem, &bmi, DIB_RGB_COLORS, &bits, nullptr, 0);
+    HGDIOBJ old = SelectObject(mem, dib);
+
+    unsigned int* px = (unsigned int*)bits;
+    // premultiplied: channel = gray * alpha / 255
+    int c = (gray * alpha) / 255;
+    unsigned int v = (unsigned int)((alpha << 24) | (c << 16) | (c << 8) | c);
+    for (int i = 0; i < w * h; i++) px[i] = v;
+
+    BLENDFUNCTION bf{ AC_SRC_OVER, 0, 255, AC_SRC_ALPHA };
+    AlphaBlend(hdc, 0, 0, w, h, mem, 0, 0, w, h, bf);
+
+    SelectObject(mem, old);
+    DeleteObject(dib);
+    DeleteDC(mem);
+}
+
 void DrawUI(HWND hwnd, HDC hdc) {
     RECT rc;
     GetClientRect(hwnd, &rc);
@@ -88,8 +118,7 @@ void DrawUI(HWND hwnd, HDC hdc) {
     HBITMAP memBmp = CreateCompatibleBitmap(hdc, w, h);
     HGDIOBJ oldBmp = SelectObject(memDC, memBmp);
 
-    // 2) Dessine tout sur memDC (pas sur hdc)
-    FillRect(memDC, &rc, (HBRUSH)GetStockObject(BLACK_BRUSH));
+    DrawTint(memDC, w, h, 120, 15);
 
     DrawTopHighlight(memDC, w, h, 70);
 
